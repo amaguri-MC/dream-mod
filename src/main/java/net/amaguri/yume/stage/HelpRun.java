@@ -18,8 +18,8 @@ import net.amaguri.yume.core.YumeConfig;
 
 /** An all-white corridor; a lone figure far away slowly turns to face the camera, which creeps closer. */
 final class HelpRun extends BaseRun {
-	private static final double CAM_START_Z = 34.0;
-	private static final double CAM_END_Z = 26.0;
+	private static final double CAM_START_Z = 25.3;
+	private static final double CAM_END_Z = 22.9;
 
 	/** Figure stands mid-corridor. */
 	private static final double FIG_Z = 20.5;

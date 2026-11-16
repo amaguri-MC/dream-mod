@@ -100,7 +100,7 @@ final class SheepRun extends BaseRun {
 		String name = YumeConfig.get().cast == null ? "" : YumeConfig.get().cast.sheepRider;
 		rider = track(Kit.mannequin(level, name, at(0.5 + START_X[0], hopY(START_X[0]), laneZ(START_X[0])), LANE_YAW));
 		rider.startRiding(sheep[0], true, false);
-		spawnCamera(at(0.5 - 1.5, 1.8, 0.5 + 5.0), 180.0f, 2.0f);
+		spawnCamera(at(0.5 - 1.5, 1.8, 0.5 + 7.0), 180.0f, 2.0f);
 	}
 
 	@Override
@@ -138,6 +138,6 @@ final class SheepRun extends BaseRun {
 		Kit.face(rider, LANE_YAW, (float) (-8.0 + 14.0 * Math.sin(t * 0.55)));
 		// slow pan from the side
 		double e = Kit.ease(p);
-		cam(at(0.5 - 1.5 + 3.0 * e, 1.8, 0.5 + 5.0), 180.0f, 2.0f);
+		cam(at(0.5 - 1.5 + 3.0 * e, 1.8, 0.5 + 7.0), 180.0f, 2.0f);
 	}
 }

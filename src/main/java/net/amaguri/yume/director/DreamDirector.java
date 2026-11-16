@@ -53,6 +53,7 @@ import net.amaguri.yume.net.DreamStartPayload;
 import net.amaguri.yume.schedule.DreamFilter;
 import net.amaguri.yume.schedule.DreamPlan;
 import net.amaguri.yume.schedule.DreamSchedule;
+import net.amaguri.yume.schedule.RevealStage;
 import net.amaguri.yume.schedule.Scene;
 import net.amaguri.yume.stage.CameraAnchor;
 import net.amaguri.yume.stage.DreamStages;
@@ -134,7 +135,7 @@ public final class DreamDirector {
 		PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, be) -> {
 			try {
 				if (!(player instanceof ServerPlayer sp)) return true;
-				if (YumeState.get().finale) return true;
+				if (Groups.stage() == RevealStage.FINALE) return true;
 				if (Groups.sideOf(sp) != Groups.Side.LOST) return true;
 				return !inRoom(level, pos);
 			} catch (Throwable t) {
@@ -143,7 +144,7 @@ public final class DreamDirector {
 		});
 		PlayerBlockBreakEvents.AFTER.register((level, player, pos, state, be) -> safe("break", () -> {
 			if (!(player instanceof ServerPlayer sp) || !(level instanceof ServerLevel sl)) return;
-			if (YumeState.get().finale) return;
+			if (Groups.stage() == RevealStage.FINALE) return;
 			if (Groups.sideOf(sp) != Groups.Side.DREAMER) return;
 			if (inRoom(level, pos)) finale(sl.getServer());
 		}));
@@ -155,6 +156,16 @@ public final class DreamDirector {
 	public static boolean isInDream(ServerPlayer player) {
 		Session s = session;
 		return s != null && player != null && s.viewers.containsKey(player.getUUID());
+	}
+
+	/**
+	 * True only while a real (advance=true) dream whose plan.voice is set is playing: not tests, not POV,
+	 * not with a forced stage.
+	 */
+	public static boolean voiceOpen() {
+		Session s = session;
+		return s != null && !s.test && s.advance && s.phase == Phase.MAIN && s.plan != null && s.plan.voice()
+				&& YumeState.get().stageOverride == null;
 	}
 
 	/** Is any dream session running right now? */
@@ -275,7 +286,7 @@ public final class DreamDirector {
 	/** All online dreamers are in the overworld, in bed, and have slept long enough for vanilla to count it as deep sleep. */
 	private static boolean sleepersReady(MinecraftServer server) {
 		YumeConfig c = YumeConfig.get();
-		if (YumeState.get().finale) return false;
+		if (Groups.stage() == RevealStage.FINALE) return false;
 		if (c.dreamers == null || c.dreamers.isEmpty()) return false;
 		List<ServerPlayer> dreamers = Groups.online(server, Groups.Side.DREAMER);
 		if (dreamers.isEmpty()) return false;
@@ -659,7 +670,8 @@ public final class DreamDirector {
 				yaw = rd.yaw();
 				pitch = rd.pitch();
 			}
-			p.teleportTo(lvl, x, y, z, Set.<Relative>of(), yaw, pitch, false);
+			boolean ok = p.teleportTo(lvl, x, y, z, Set.<Relative>of(), yaw, pitch, false);
+			if (!ok || p.isRemoved() || p.hasDisconnected()) return false;
 			p.resetFallDistance();
 			return true;
 		} catch (Throwable t) {
@@ -693,11 +705,13 @@ public final class DreamDirector {
 
 	private static void onLeave(MinecraftServer server, ServerPlayer p) {
 		if (p == null) return;
-		Session s = session;
-		if (s != null) s.viewers.remove(p.getUUID());
-		DreamLock.release(p.getUUID());
-		// Put them back right away so the saved player data is the real place; if that fails the join/sweep retries.
-		restoreStale(server, p);
+		// May run on a network thread: never touch the world here. inDream stays; JOIN puts them back.
+		UUID id = p.getUUID();
+		DreamLock.release(id);
+		server.execute(() -> {
+			Session s = session;
+			if (s != null) s.viewers.remove(id);
+		});
 	}
 
 	private static boolean inLiveSession(UUID id) {

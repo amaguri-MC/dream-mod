@@ -162,7 +162,7 @@ public final class Isolation {
 		YumeConfig c = YumeConfig.get();
 		StringBuilder sb = new StringBuilder();
 		sb.append("見た夢: ").append(s.dreamsSeen).append(" 回（次は ").append(s.dreamsSeen + 1).append(" 日目）\n");
-		String mode = s.finale ? "（終幕済み）" : s.stageOverride != null ? "（固定）" : "（自動）";
+		String mode = Groups.stage() == RevealStage.FINALE ? "（終幕）" : s.stageOverride != null ? "（固定）" : "（自動）";
 		sb.append("段階: ").append(Groups.stage()).append(mode).append('\n');
 		sb.append("時間の速さ: ×").append(s.timeSpeed).append('\n');
 		sb.append("夢の最中: ").append(DreamDirector.isDreamActive() ? "はい" : "いいえ").append('\n');

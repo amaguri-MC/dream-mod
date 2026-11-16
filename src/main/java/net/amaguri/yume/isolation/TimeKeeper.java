@@ -79,6 +79,10 @@ final class TimeKeeper {
 			if (speed <= 1 || !advancing) return;
 			if (!server.getGameRules().get(GameRules.ADVANCE_TIME)) return;
 			if (DreamDirector.isDreamActive()) return;
+			// Never hurry the night while somebody is in bed (morning must not come before deep sleep).
+			for (net.minecraft.world.entity.player.Player p : server.overworld().players()) {
+				if (p.isSleeping()) return;
+			}
 			server.clockManager().addTicks(clock, speed - 1);
 			lastTotal = server.clockManager().getTotalTicks(clock);
 		} catch (Throwable t) {

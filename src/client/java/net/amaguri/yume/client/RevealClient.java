@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
@@ -69,6 +70,10 @@ public final class RevealClient {
 	}
 
 	public static byte renderMode(Avatar entity) {
+		// During a dream, other spectators gathered on the same camera (their heads and names) are never drawn.
+		if (DreamClient.isActive() && entity instanceof Player p && p != Minecraft.getInstance().player && p.isSpectator()) {
+			return MODE_INVISIBLE;
+		}
 		if (!(entity instanceof Player) && whiteIds.contains(entity.getId())) {
 			return MODE_WHITE;
 		}

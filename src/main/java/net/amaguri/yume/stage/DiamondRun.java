@@ -35,10 +35,13 @@ final class DiamondRun extends BaseRun {
 	private final int boomAt;
 	private int fallStart = -1;
 	private boolean landed;
+	private int perchedAt = -1;
+	/** Height of the miner's head: the creeper lands here first. */
+	private static final double HEAD = 1.9;
 	private boolean exploded;
 	private boolean ignited;
 	private boolean broken;
-	private double minerX = -1.2;
+	private double minerX = 0.5;
 
 	DiamondRun(ServerLevel level, BlockPos origin, int dur) {
 		super(level, origin, dur);
@@ -91,13 +94,13 @@ final class DiamondRun extends BaseRun {
 	@Override
 	void populate() {
 		String name = YumeConfig.get().cast == null ? "" : YumeConfig.get().cast.miner;
-		miner = track(Kit.mannequin(level, name, at(minerX, 0, -0.5), -90.0f));
+		miner = track(Kit.mannequin(level, name, at(minerX, 0, -0.5), 0.0f));
 		miner.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.DIAMOND_PICKAXE));
-		Kit.face(miner, -90.0f, -48.0f);
+		Kit.face(miner, 0.0f, -70.0f);
 		CompoundTag nbt = new CompoundTag();
 		nbt.putShort("Fuse", (short) 1000); // never really explodes
 		creeper = track(Kit.spawn(level, EntityTypes.CREEPER, nbt, at(ORE_X + 0.5, ORE_Y + 1, ORE_Z + 0.5), -90.0f, 0.0f));
-		spawnCamera(at(0.5, 1.3, 4.6), 180.0f, -14.0f);
+		spawnCamera(at(0.5, 1.0, 3.2), 180.0f, -20.0f);
 	}
 
 	private BlockPos orePos() {
@@ -131,32 +134,45 @@ final class DiamondRun extends BaseRun {
 			fallStart = t;
 		}
 
-		// ---- the creeper falls through the hole ----
+		// ---- the creeper falls through the hole onto the miner's head, then slides off ----
 		if (broken && !landed && creeper != null && !creeper.isRemoved()) {
-			int n = t - fallStart + 1;
-			double drop = 0.5 * GRAVITY * n * n;
-			double y = Math.max(0.0, (ORE_Y + 1) - drop);
-			creeper.snapTo(o.getX() + ORE_X + 0.5, o.getY() + y, o.getZ() + ORE_Z + 0.5, -90.0f, 0.0f);
-			Kit.face(creeper, -90.0f, 0.0f);
-			if (y <= 0.0) {
-				landed = true;
-				Vec3 floor = creeper.position();
-				Kit.sound(level, floor, SoundEvents.PLAYER_BIG_FALL, SoundSource.HOSTILE, 1.5f, 0.6f);
-				Kit.sound(level, floor, SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 0.5f, 0.5f);
-				Kit.particles(level, new BlockParticleOption(ParticleTypes.BLOCK, Blocks.STONE.defaultBlockState()),
-						floor, 25, 0.5, 0.05, 0.5, 0.05);
-				Kit.particles(level, ParticleTypes.CLOUD, floor, 6, 0.4, 0.05, 0.4, 0.02);
+			double cx = o.getX() + ORE_X + 0.5;
+			double cz = o.getZ() + ORE_Z + 0.5;
+			if (perchedAt < 0) {
+				int n = t - fallStart + 1;
+				double y = Math.max(HEAD, (ORE_Y + 1) - 0.5 * GRAVITY * n * n);
+				creeper.snapTo(cx, o.getY() + y, cz, 0.0f, 0.0f);
+				Kit.face(creeper, 0.0f, 0.0f);
+				if (y <= HEAD) {
+					perchedAt = t;
+					Vec3 hit = creeper.position();
+					Kit.sound(level, hit, SoundEvents.PLAYER_BIG_FALL, SoundSource.HOSTILE, 1.5f, 0.6f);
+					Kit.sound(level, hit, SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 0.5f, 0.5f);
+					Kit.particles(level, new BlockParticleOption(ParticleTypes.BLOCK, Blocks.STONE.defaultBlockState()),
+							hit, 25, 0.5, 0.05, 0.5, 0.05);
+					Kit.particles(level, ParticleTypes.CLOUD, hit, 6, 0.4, 0.05, 0.4, 0.02);
+				}
+			} else {
+				int k = t - perchedAt - 4;
+				if (k >= 0) {
+					double u = Math.min(1.0, k / 6.0);
+					creeper.snapTo(cx + 0.8 * u, o.getY() + HEAD * (1.0 - u * u), cz, 0.0f, 0.0f);
+					if (u >= 1.0) {
+						landed = true;
+						Kit.sound(level, creeper.position(), SoundEvents.STONE_STEP, SoundSource.HOSTILE, 1.0f, 0.7f);
+					}
+				}
 			}
 		}
 		// the miner stumbles back and stares at it
-		if (landed && !exploded) {
-			double target = -1.9;
+		if (perchedAt >= 0 && !exploded) {
+			double target = -0.6;
 			if (minerX > target) {
-				minerX = Math.max(target, minerX - 0.12);
-				miner.snapTo(o.getX() + minerX, o.getY(), o.getZ() - 0.5, -90.0f, 8.0f);
+				minerX = Math.max(target, minerX - 0.1);
+				miner.snapTo(o.getX() + minerX, o.getY(), o.getZ() - 0.5, 0.0f, 8.0f);
 			}
 			float shake = ignited ? (float) (7.0 * Math.sin(t * 2.3)) : 0.0f;
-			Kit.face(miner, -90.0f + shake, 8.0f);
+			Kit.face(miner, shake, 8.0f);
 		}
 
 		// ---- fuse ----
@@ -198,6 +214,6 @@ final class DiamondRun extends BaseRun {
 			sx = Math.sin(t * 7.1) * k;
 			sy = Math.cos(t * 5.3) * k;
 		}
-		cam(at(0.5 + sx, 1.3 + sy, 4.6 - 0.9 * push), 180.0f, -14.0f);
+		cam(at(0.5 + sx, 1.0 + sy, 3.2 - 0.3 * push), 180.0f, -20.0f);
 	}
 }
