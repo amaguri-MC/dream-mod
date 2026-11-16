@@ -55,6 +55,10 @@ public final class RevealClient {
 		whiteIds = (ids == null || ids.isEmpty()) ? Set.of() : new HashSet<>(ids);
 	}
 
+	public static Set<Integer> whiteIds() {
+		return whiteIds;
+	}
+
 	public static void clearWhiteIds() {
 		whiteIds = Set.of();
 	}

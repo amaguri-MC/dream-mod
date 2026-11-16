@@ -12,7 +12,8 @@
 		"HudMixin",
 		"ToastManagerMixin",
 		"OptionsMixin",
-		"PlayerModelMixin"
+		"PlayerModelMixin",
+		"LevelLoadingScreenMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

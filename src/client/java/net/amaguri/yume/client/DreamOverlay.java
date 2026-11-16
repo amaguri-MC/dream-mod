@@ -97,7 +97,10 @@ public final class DreamOverlay {
 			return;
 		}
 		int[] at = DreamClient.charAt();
-		float typed = t - DreamClient.textDelay();
+		if (DreamClient.readyAt() < 0) {
+			return;
+		}
+		float typed = t - DreamClient.readyAt() - DreamClient.textDelay();
 		if (typed < 0f) {
 			return;
 		}

@@ -10,6 +10,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.gui.screens.LevelLoadingScreen;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -36,6 +37,19 @@ public final class DreamClient {
 	private static int textDelay;
 	private static int[] charAt = new int[0];
 	private static CameraType savedCamera;
+
+	/** Extra ticks to wait for DreamEnd after the dream time is up (the way back may still be loading). */
+	private static final int END_WAIT_TICKS = 60;
+	/** After a dream ends, loading screens stay hidden this long. */
+	private static final int LOADING_GRACE_TICKS = 100;
+	/** Give up waiting for the world to be ready after this many ticks. */
+	private static final int READY_TIMEOUT_TICKS = 120;
+
+	private static int readyAt = -1;
+	private static int stable;
+	private static Object startLevel;
+	private static double startX, startY, startZ;
+	private static int loadingGrace;
 
 	private static int exitTicks;
 	private static float exitFrom;
@@ -103,6 +117,16 @@ public final class DreamClient {
 		return charAt;
 	}
 
+	/** True while a dimension/world loading screen must not be shown (a black screen is drawn instead). */
+	public static boolean hidesLoading() {
+		return active || loadingGrace > 0;
+	}
+
+	/** Dream time (ticks) at which the picture became visible; -1 while still black and waiting for the world. */
+	public static int readyAt() {
+		return readyAt;
+	}
+
 	public static boolean isExiting() {
 		return !active && exitTicks > 0;
 	}
@@ -118,7 +142,10 @@ public final class DreamClient {
 	/** Black cover at the given dream time: 1 at the very start and end, 0 in between. */
 	public static float fadeAlpha(float t) {
 		int len = Math.max(1, Math.min(FADE_TICKS, duration / 2));
-		float in = 1f - t / len;
+		if (readyAt < 0) {
+			return 1f;
+		}
+		float in = 1f - (t - readyAt) / len;
 		float out = (t - (duration - len)) / len;
 		float a = Math.max(in, out);
 		a = Math.max(0f, Math.min(1f, a));
@@ -147,6 +174,15 @@ public final class DreamClient {
 		RevealClient.setWhiteIds(p.whiteSilhouetteIds());
 		elapsed = 0;
 		exitTicks = 0;
+		readyAt = -1;
+		stable = 0;
+		startLevel = mc.level;
+		if (mc.player != null) {
+			startX = mc.player.getX();
+			startY = mc.player.getY();
+			startZ = mc.player.getZ();
+		}
+		loadingGrace = 0;
 		active = true;
 	}
 
@@ -177,6 +213,7 @@ public final class DreamClient {
 		}
 		float cover = fadeAlpha(Math.min(elapsed, duration));
 		active = false;
+		loadingGrace = LOADING_GRACE_TICKS;
 		RevealClient.clearWhiteIds();
 		BellyClient.clear();
 		Minecraft mc = Minecraft.getInstance();
@@ -190,9 +227,32 @@ public final class DreamClient {
 		}
 	}
 
+	/** The picture fades in only once the new place (camera entity, chunks) can be drawn. */
+	private static void checkReady(Minecraft mc) {
+		// ready once we moved away, or once the dream camera has been attached (short same-level moves)
+		boolean moved = mc.level != startLevel
+				|| mc.player.distanceToSqr(startX, startY, startZ) > 16.0
+				|| (mc.getCameraEntity() != null && mc.getCameraEntity() != mc.player);
+		boolean ok = moved && !(mc.gui.screen() instanceof LevelLoadingScreen) && mc.getCameraEntity() != null
+				&& mc.levelRenderer.hasRenderedAllSections();
+		if (ok) {
+			for (int id : RevealClient.whiteIds()) {
+				if (mc.level.getEntity(id) == null) {
+					ok = false;
+					break;
+				}
+			}
+		}
+		stable = ok ? stable + 1 : 0;
+		if (stable >= 3 || elapsed >= READY_TIMEOUT_TICKS) {
+			readyAt = elapsed;
+		}
+	}
+
 	private static void resetAll() {
 		active = false;
 		exitTicks = 0;
+		loadingGrace = 0;
 		savedCamera = null;
 		text = "";
 		charAt = new int[0];
@@ -203,6 +263,7 @@ public final class DreamClient {
 	private static void tick(Minecraft mc) {
 		if (mc.player == null || mc.level == null) {
 			if (active || exitTicks > 0) {
+				loadingGrace = active ? LOADING_GRACE_TICKS : loadingGrace;
 				active = false;
 				exitTicks = 0;
 				savedCamera = null;
@@ -215,12 +276,18 @@ public final class DreamClient {
 			if (exitTicks > 0) {
 				exitTicks--;
 			}
+			if (loadingGrace > 0) {
+				loadingGrace--;
+			}
 			return;
 		}
 		elapsed++;
-		if (elapsed >= duration) {
+		if (elapsed >= duration + END_WAIT_TICKS) {
 			end();
 			return;
+		}
+		if (readyAt < 0) {
+			checkReady(mc);
 		}
 		// Nothing the player presses may break the picture.
 		if (mc.gui.hud.isHidden()) {
