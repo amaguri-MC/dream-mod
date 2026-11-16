@@ -41,6 +41,12 @@ final class YumeCommand {
 	private static final SuggestionProvider<CommandSourceStack> STAGES = (ctx, b) -> SharedSuggestionProvider.suggest(STAGE_NAMES, b);
 	private static final SuggestionProvider<CommandSourceStack> CAMERAS = (ctx, b) -> SharedSuggestionProvider.suggest(CAMERA_NAMES, b);
 
+	private static final List<String> SIDE_NAMES = List.of("dreamer", "lost", "none");
+	private static final List<String> CAST_NAMES = List.of("sheep", "miner", "balloon", "help", "pov");
+	private static final SuggestionProvider<CommandSourceStack> SIDES = (ctx, b) -> SharedSuggestionProvider.suggest(SIDE_NAMES, b);
+	private static final SuggestionProvider<CommandSourceStack> CASTS = (ctx, b) -> SharedSuggestionProvider.suggest(CAST_NAMES, b);
+	private static final SuggestionProvider<CommandSourceStack> NAMES = (ctx, b) -> SharedSuggestionProvider.suggest(ctx.getSource().getOnlinePlayerNames(), b);
+
 	private YumeCommand() {
 	}
 
@@ -92,6 +98,20 @@ final class YumeCommand {
 						.then(Commands.literal("off").executes(ctx -> spy(ctx, false))))
 				.then(Commands.literal("timespeed")
 						.then(Commands.argument("n", IntegerArgumentType.integer(1, 1000)).executes(YumeCommand::timeSpeed)))
+				.then(Commands.literal("member")
+						.then(Commands.argument("side", StringArgumentType.word()).suggests(SIDES)
+								.then(Commands.argument("player", StringArgumentType.word()).suggests(NAMES).executes(YumeCommand::member))))
+				.then(Commands.literal("operator")
+						.then(Commands.literal("add")
+								.then(Commands.argument("player", StringArgumentType.word()).suggests(NAMES).executes(ctx -> operator(ctx, true))))
+						.then(Commands.literal("remove")
+								.then(Commands.argument("player", StringArgumentType.word()).suggests(NAMES).executes(ctx -> operator(ctx, false)))))
+				.then(Commands.literal("cast")
+						.then(Commands.argument("role", StringArgumentType.word()).suggests(CASTS)
+								.then(Commands.argument("player", StringArgumentType.word()).suggests(NAMES).executes(YumeCommand::cast))))
+				.then(Commands.literal("seconds")
+						.then(Commands.argument("n", IntegerArgumentType.integer(3, 120)).executes(YumeCommand::seconds)))
+				.then(Commands.literal("members").executes(YumeCommand::members))
 				.then(Commands.literal("reload").executes(YumeCommand::reload)));
 	}
 
@@ -256,5 +276,78 @@ final class YumeCommand {
 			server.getCommands().sendCommands(p);
 		}
 		return reply(ctx, "設定を読み込み直しました");
+	}
+
+	// ---- in-game setup (no need to edit config/yume.json by hand) ----
+
+	private static void removeIgnoreCase(List<String> list, String name) {
+		list.removeIf(x -> x != null && x.equalsIgnoreCase(name));
+	}
+
+	private static void afterMembershipChange(MinecraftServer server) {
+		YumeConfig.save();
+		Isolation.sync(server);
+		for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+			server.getCommands().sendCommands(p);
+		}
+	}
+
+	private static int member(CommandContext<CommandSourceStack> ctx) {
+		String side = StringArgumentType.getString(ctx, "side").toLowerCase(Locale.ROOT);
+		String name = StringArgumentType.getString(ctx, "player");
+		YumeConfig c = YumeConfig.get();
+		removeIgnoreCase(c.dreamers, name);
+		removeIgnoreCase(c.lost, name);
+		switch (side) {
+			case "dreamer" -> c.dreamers.add(name);
+			case "lost" -> c.lost.add(name);
+			case "none" -> { }
+			default -> {
+				return fail(ctx, "dreamer / lost / none のどれかを指定してください");
+			}
+		}
+		afterMembershipChange(server(ctx));
+		return reply(ctx, name + " → " + side + "（寝る側 " + c.dreamers.size() + "人 / 部屋側 " + c.lost.size() + "人）");
+	}
+
+	private static int operator(CommandContext<CommandSourceStack> ctx, boolean add) {
+		String name = StringArgumentType.getString(ctx, "player");
+		YumeConfig c = YumeConfig.get();
+		removeIgnoreCase(c.operators, name);
+		if (add) c.operators.add(name);
+		afterMembershipChange(server(ctx));
+		return reply(ctx, name + (add ? " を仕掛け人に追加しました" : " を仕掛け人から外しました"));
+	}
+
+	private static int cast(CommandContext<CommandSourceStack> ctx) {
+		String role = StringArgumentType.getString(ctx, "role").toLowerCase(Locale.ROOT);
+		String name = StringArgumentType.getString(ctx, "player");
+		YumeConfig c = YumeConfig.get();
+		switch (role) {
+			case "sheep" -> c.cast.sheepRider = name;
+			case "miner" -> c.cast.miner = name;
+			case "balloon" -> c.cast.balloon = name;
+			case "help" -> c.cast.helpFigure = name;
+			case "pov" -> c.povTarget = name;
+			default -> {
+				return fail(ctx, "sheep / miner / balloon / help / pov のどれかを指定してください");
+			}
+		}
+		YumeConfig.save();
+		return reply(ctx, role + " の役を " + name + " にしました");
+	}
+
+	private static int seconds(CommandContext<CommandSourceStack> ctx) {
+		int n = IntegerArgumentType.getInteger(ctx, "n");
+		YumeConfig.get().dreamSeconds = n;
+		YumeConfig.save();
+		return reply(ctx, "夢の長さを " + n + " 秒にしました");
+	}
+
+	private static int members(CommandContext<CommandSourceStack> ctx) {
+		YumeConfig c = YumeConfig.get();
+		return reply(ctx, "寝る側: " + c.dreamers + "\n部屋側: " + c.lost + "\n仕掛け人: " + c.operators
+				+ "\n配役 sheep=" + c.cast.sheepRider + " miner=" + c.cast.miner + " balloon=" + c.cast.balloon
+				+ " help=" + c.cast.helpFigure + " pov=" + c.povTarget + "\n夢の長さ " + c.dreamSeconds + "秒");
 	}
 }
