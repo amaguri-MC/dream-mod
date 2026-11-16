@@ -10,6 +10,8 @@ import net.amaguri.yume.schedule.DreamFilter;
 /** Draws the dream look: filter, typed text, and the black fades. */
 public final class DreamOverlay {
 	private static final int RAMP_TICKS = 6;
+	private static final float TEXT_SCALE = 2.5f;
+	private static final int[][] OUTLINE = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }, { 1, 1 }, { -1, -1 } };
 
 	private DreamOverlay() {
 	}
@@ -112,27 +114,51 @@ public final class DreamOverlay {
 		}
 		Font font = Minecraft.getInstance().font;
 		String[] lines = s.split("\n", -1);
-		int y = (int) (h * 0.66f);
+		int maxW = 1;
+		for (String line : lines) {
+			maxW = Math.max(maxW, font.width(line));
+		}
+		float scale = Math.min(TEXT_SCALE, 0.92f * w / maxW);
+		int lineH = font.lineHeight + 4;
+		float y0 = h * 0.62f;
 		int lineStart = 0;
+		g.pose().pushMatrix();
+		g.pose().translate(w / 2f, y0);
+		g.pose().scale(scale, scale);
+		int y = 0;
 		for (String line : lines) {
 			int lineEnd = lineStart + line.length();
 			int shown = Math.max(0, Math.min(line.length(), last + 1 - lineStart));
 			if (shown > 0) {
-				int x = (w - font.width(line)) / 2;
+				int x = -font.width(line) / 2;
 				boolean newestHere = last < lineEnd;
 				String solid = newestHere ? line.substring(0, shown - 1) : line.substring(0, shown);
-				if (!solid.isEmpty()) {
-					g.text(font, solid, x, y, argb(0.92f, 237, 237, 240), false);
-				}
+				float ramp = 1f;
 				if (newestHere) {
-					float ramp = Math.min(1f, (typed - at[last]) / RAMP_TICKS);
-					int cx = x + font.width(solid);
-					g.text(font, line.substring(shown - 1, shown), cx, y, argb(0.92f * Math.max(0.05f, ramp), 237, 237, 240), false);
+					ramp = Math.max(0.05f, Math.min(1f, (typed - at[last]) / RAMP_TICKS));
+				}
+				int cx = x + font.width(solid);
+				String tail = newestHere ? line.substring(shown - 1, shown) : "";
+				// Dark soft edge first, so the text reads on white too.
+				for (int[] o : OUTLINE) {
+					if (!solid.isEmpty()) {
+						g.text(font, solid, x + o[0], y + o[1], argb(0.45f, 20, 20, 30), false);
+					}
+					if (!tail.isEmpty()) {
+						g.text(font, tail, cx + o[0], y + o[1], argb(0.45f * ramp, 20, 20, 30), false);
+					}
+				}
+				if (!solid.isEmpty()) {
+					g.text(font, solid, x, y, argb(0.95f, 255, 255, 255), false);
+				}
+				if (!tail.isEmpty()) {
+					g.text(font, tail, cx, y, argb(0.95f * ramp, 255, 255, 255), false);
 				}
 			}
-			y += font.lineHeight + 4;
+			y += lineH;
 			lineStart = lineEnd + 1;
 		}
+		g.pose().popMatrix();
 	}
 
 	private static int lerp(int a, int b, float k) {

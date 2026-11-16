@@ -18,8 +18,11 @@ import net.amaguri.yume.core.YumeConfig;
 
 /** An all-white corridor; a lone figure far away slowly turns to face the camera, which creeps closer. */
 final class HelpRun extends BaseRun {
-	private static final double CAM_START_Z = 36.5;
-	private static final double CAM_END_Z = 13.0;
+	private static final double CAM_START_Z = 34.0;
+	private static final double CAM_END_Z = 26.0;
+
+	/** Figure stands mid-corridor. */
+	private static final double FIG_Z = 20.5;
 
 	private Mannequin figure;
 
@@ -53,7 +56,7 @@ final class HelpRun extends BaseRun {
 	@Override
 	void populate() {
 		String name = YumeConfig.get().cast == null ? "" : YumeConfig.get().cast.helpFigure;
-		figure = track(Kit.mannequin(level, name, at(0.5, 0, 0.5), 180.0f));
+		figure = track(Kit.mannequin(level, name, at(0.5, 0, FIG_Z), 180.0f));
 		spawnCamera(at(0.5, 1.62, CAM_START_Z), 180.0f, 0.0f);
 	}
 

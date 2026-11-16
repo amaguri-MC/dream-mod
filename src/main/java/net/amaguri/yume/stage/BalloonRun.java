@@ -96,7 +96,7 @@ final class BalloonRun extends BaseRun {
 		String name = YumeConfig.get().cast == null ? "" : YumeConfig.get().cast.balloon;
 		eater = track(Kit.mannequin(level, name, at(0.5, 0, 0.5), 0.0f));
 		eater.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(MENU[0]));
-		spawnCamera(at(0.5, 3.0, 14.5), 180.0f, 8.0f);
+		spawnCamera(at(0.5, 1.8, 7.0), 180.0f, 0.0f);
 	}
 
 	private double scaleAt(int t, double p) {
@@ -170,13 +170,13 @@ final class BalloonRun extends BaseRun {
 		Kit.face(eater, yaw, 0.0f);
 
 		// ---- camera ----
-		Vec3 cpos = at(0.5, 3.0, 14.5);
-		double aim = Kit.ease((p - 0.64) / 0.34);
-		double targetY = eater.getY() + 1.7 * scale;
+		Vec3 cpos = at(0.5, 1.8, 7.0);
+		double aim = Kit.ease((p - 0.62) / 0.2);
+		double targetY = eater.getY() + 0.9 * scale;
 		double dy = targetY - cpos.y;
 		double dz = cpos.z - eater.getZ();
 		double lookUp = Math.toDegrees(Math.atan2(dy, dz));
-		float pitch = (float) (8.0 + (-lookUp - 8.0) * aim);
+		float pitch = (float) (0.0 + (-lookUp) * aim);
 		cam(cpos, 180.0f, Math.max(-80.0f, Math.min(12.0f, pitch)));
 	}
 }

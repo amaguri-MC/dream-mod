@@ -17,13 +17,18 @@ import net.amaguri.yume.core.YumeConfig;
 
 /** Sheep leaping a fence on a floating island; the sheepRider sits on the first sheep. */
 final class SheepRun extends BaseRun {
-	private static final int COUNT = 4;
+	private static final int COUNT = 3;
 	/** Sheep run along +x from -RANGE to +RANGE and wrap around (off camera). */
-	private static final double RANGE = 20.0;
+	private static final double RANGE = 10.0;
 	private static final double SPEED = 0.3125;
-	private static final double JUMP_HALF = 3.2;
-	private static final double JUMP_HEIGHT = 2.0;
-	private static final double[] START_X = {-6.0, -16.0, 14.0, 4.0};
+	private static final double JUMP_HALF = 4.0;
+	/** Lane slope: z = LANE_Z0 - SLOPE * x, so every sheep crosses the long fence (z = 0.5) at x = 0. */
+	private static final double SLOPE = 0.3;
+	private static final double JUMP_HEIGHT = 1.9;
+	private static final double[] START_X = {-6.0, 7.5, -9.5};
+
+	/** Heading of the lane (towards +x, -z). */
+	private static final float LANE_YAW = (float) Math.toDegrees(Math.atan2(-1.0, -SLOPE));
 
 	private final Sheep[] sheep = new Sheep[COUNT];
 	private final double[] lastX = new double[COUNT];
@@ -44,21 +49,18 @@ final class SheepRun extends BaseRun {
 		int cy = o.getY();
 		int cz = o.getZ();
 		Kit.island(plan, cx, cy, cz, 22, 14, 10);
-		// a row of fence posts across the run lane
+		// one long fence across the whole screen (runs along x)
 		BlockState fence = Blocks.OAK_FENCE.defaultBlockState();
-		int len = 4;
-		for (int dz = -len; dz <= len; dz++) {
-			plan.set(cx, cy, cz + dz, fence
-					.setValue(CrossCollisionBlock.NORTH, dz > -len)
-					.setValue(CrossCollisionBlock.SOUTH, dz < len));
+		int len = 14;
+		for (int dx = -len; dx <= len; dx++) {
+			plan.set(cx + dx, cy, cz, fence
+					.setValue(CrossCollisionBlock.WEST, dx > -len)
+					.setValue(CrossCollisionBlock.EAST, dx < len));
 		}
 		// flowers and tufts, never on the lane itself
 		for (int x = -21; x <= 21; x++) {
 			for (int z = -13; z <= 13; z++) {
-				if (z == 0 || Math.abs(z) > 12 || plan.get(cx + x, cy - 1, cz + z) == null) {
-					continue;
-				}
-				if (x == 0 && Math.abs(z) <= len) {
+				if (z == 0 || z == 1 || Math.abs(z) > 12 || plan.get(cx + x, cy - 1, cz + z) == null) {
 					continue;
 				}
 				int h = Kit.hash(x, z) % 23;
@@ -79,6 +81,10 @@ final class SheepRun extends BaseRun {
 		return v - RANGE;
 	}
 
+	private static double laneZ(double x) {
+		return 0.5 - SLOPE * x;
+	}
+
 	private static double hopY(double x) {
 		double u = x / JUMP_HALF;
 		return Math.abs(u) >= 1.0 ? 0.0 : JUMP_HEIGHT * (1.0 - u * u);
@@ -89,12 +95,12 @@ final class SheepRun extends BaseRun {
 		for (int k = 0; k < COUNT; k++) {
 			double x = START_X[k];
 			lastX[k] = x;
-			sheep[k] = track(Kit.spawn(level, EntityTypes.SHEEP, null, at(0.5 + x, hopY(x), 0.5), -90.0f, 0.0f));
+			sheep[k] = track(Kit.spawn(level, EntityTypes.SHEEP, null, at(0.5 + x, hopY(x), laneZ(x)), LANE_YAW, 0.0f));
 		}
 		String name = YumeConfig.get().cast == null ? "" : YumeConfig.get().cast.sheepRider;
-		rider = track(Kit.mannequin(level, name, at(0.5 + START_X[0], hopY(START_X[0]), 0.5), -90.0f));
+		rider = track(Kit.mannequin(level, name, at(0.5 + START_X[0], hopY(START_X[0]), laneZ(START_X[0])), LANE_YAW));
 		rider.startRiding(sheep[0], true, false);
-		spawnCamera(at(0.5 - 3.0, 2.3, 0.5 + 11.0), 180.0f, 6.0f);
+		spawnCamera(at(0.5 - 1.5, 1.8, 0.5 + 5.0), 180.0f, 2.0f);
 	}
 
 	@Override
@@ -104,8 +110,8 @@ final class SheepRun extends BaseRun {
 			double x = xAt(k, t);
 			double y = hopY(x);
 			Sheep s = sheep[k];
-			s.snapTo(o.getX() + 0.5 + x, o.getY() + y, o.getZ() + 0.5, -90.0f, (float) (18.0 * x / JUMP_HALF * (y > 0 ? 1 : 0)));
-			Kit.face(s, -90.0f, s.getXRot());
+			s.snapTo(o.getX() + 0.5 + x, o.getY() + y, o.getZ() + laneZ(x), LANE_YAW, (float) (18.0 * x / JUMP_HALF * (y > 0 ? 1 : 0)));
+			Kit.face(s, LANE_YAW, s.getXRot());
 			Vec3 pos = s.position();
 			if (lastX[k] < -JUMP_HALF && x >= -JUMP_HALF && x < 0) {
 				Kit.sound(level, pos, SoundEvents.SHEEP_AMBIENT, SoundSource.NEUTRAL, k == 0 ? 1.4f : 1.0f,
@@ -129,9 +135,9 @@ final class SheepRun extends BaseRun {
 		if (t % every == 0) {
 			rider.swing(((t / every) & 1) == 0 ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND);
 		}
-		Kit.face(rider, -90.0f, (float) (-8.0 + 14.0 * Math.sin(t * 0.55)));
+		Kit.face(rider, LANE_YAW, (float) (-8.0 + 14.0 * Math.sin(t * 0.55)));
 		// slow pan from the side
 		double e = Kit.ease(p);
-		cam(at(0.5 - 3.0 + 6.0 * e, 2.3, 0.5 + 11.0), 180.0f, 6.0f);
+		cam(at(0.5 - 1.5 + 3.0 * e, 1.8, 0.5 + 5.0), 180.0f, 2.0f);
 	}
 }

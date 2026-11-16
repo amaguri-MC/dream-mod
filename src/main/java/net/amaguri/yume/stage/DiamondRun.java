@@ -72,8 +72,8 @@ final class DiamondRun extends BaseRun {
 		}
 		// the room: x -5..5, y 0..2, z -3..5
 		plan.fill(ox - 5, oy, oz - 3, ox + 5, oy + 2, oz + 5, Blocks.AIR.defaultBlockState());
-		// shaft above the ore, closed on top
-		plan.fill(ox + ORE_X, oy + ORE_Y + 1, oz + ORE_Z, ox + ORE_X, oy + ORE_Y + 3, oz + ORE_Z, Blocks.AIR.defaultBlockState());
+		// closed hollow above the ore (the room has a solid 5-thick roof; the creeper waits inside)
+		plan.fill(ox + ORE_X, oy + ORE_Y + 1, oz + ORE_Z, ox + ORE_X, oy + ORE_Y + 2, oz + ORE_Z, Blocks.AIR.defaultBlockState());
 		plan.set(ox + ORE_X, oy + ORE_Y, oz + ORE_Z, Blocks.DIAMOND_ORE.defaultBlockState());
 		// lamps in the ceiling and invisible light
 		BlockState lamp = Blocks.GLOWSTONE.defaultBlockState();
@@ -97,7 +97,7 @@ final class DiamondRun extends BaseRun {
 		CompoundTag nbt = new CompoundTag();
 		nbt.putShort("Fuse", (short) 1000); // never really explodes
 		creeper = track(Kit.spawn(level, EntityTypes.CREEPER, nbt, at(ORE_X + 0.5, ORE_Y + 1, ORE_Z + 0.5), -90.0f, 0.0f));
-		spawnCamera(at(0.5, 1.5, 4.6), 180.0f, 3.0f);
+		spawnCamera(at(0.5, 1.3, 4.6), 180.0f, -14.0f);
 	}
 
 	private BlockPos orePos() {
@@ -198,6 +198,6 @@ final class DiamondRun extends BaseRun {
 			sx = Math.sin(t * 7.1) * k;
 			sy = Math.cos(t * 5.3) * k;
 		}
-		cam(at(0.5 + sx, 1.5 + sy, 4.6 - 0.9 * push), 180.0f, 3.0f);
+		cam(at(0.5 + sx, 1.3 + sy, 4.6 - 0.9 * push), 180.0f, -14.0f);
 	}
 }
