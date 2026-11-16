@@ -100,7 +100,7 @@ final class DiamondRun extends BaseRun {
 		CompoundTag nbt = new CompoundTag();
 		nbt.putShort("Fuse", (short) 1000); // never really explodes
 		creeper = track(Kit.spawn(level, EntityTypes.CREEPER, nbt, at(ORE_X + 0.5, ORE_Y + 1, ORE_Z + 0.5), -90.0f, 0.0f));
-		spawnCamera(at(0.5, 1.5, 4.6), 180.0f, -8.0f);
+		spawnCamera(at(0.5, 1.4, 3.4), 180.0f, -12.0f);
 	}
 
 	private BlockPos orePos() {
@@ -214,6 +214,6 @@ final class DiamondRun extends BaseRun {
 			sx = Math.sin(t * 7.1) * k;
 			sy = Math.cos(t * 5.3) * k;
 		}
-		cam(at(0.5 + sx, 1.5 + sy, 4.6 - 0.4 * push), 180.0f, -8.0f);
+		cam(at(0.5 + sx, 1.4 + sy, 3.4 - 0.3 * push), 180.0f, -12.0f);
 	}
 }
