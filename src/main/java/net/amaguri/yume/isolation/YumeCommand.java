@@ -54,7 +54,10 @@ final class YumeCommand {
 
 	static boolean allowed(CommandSourceStack source) {
 		ServerPlayer p = source.getPlayer();
-		if (p != null) return Groups.isOperator(p);
+		if (p != null) {
+			// config.operators, or a server operator (op) as a fallback so the host can always set things up
+			return Groups.isOperator(p) || source.getServer().getPlayerList().isOp(p.nameAndId());
+		}
 		return source.getEntity() == null;
 	}
 
