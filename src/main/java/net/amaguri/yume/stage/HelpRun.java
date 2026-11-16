@@ -18,8 +18,8 @@ import net.amaguri.yume.core.YumeConfig;
 
 /** An all-white corridor; a lone figure far away slowly turns to face the camera, which creeps closer. */
 final class HelpRun extends BaseRun {
-	private static final double CAM_START_Z = 25.3;
-	private static final double CAM_END_Z = 22.9;
+	private static final double CAM_START_Z = 29.0;
+	private static final double CAM_END_Z = 26.0;
 
 	/** Figure stands mid-corridor. */
 	private static final double FIG_Z = 20.5;
@@ -57,7 +57,7 @@ final class HelpRun extends BaseRun {
 	void populate() {
 		String name = YumeConfig.get().cast == null ? "" : YumeConfig.get().cast.helpFigure;
 		figure = track(Kit.mannequin(level, name, at(0.5, 0, FIG_Z), 180.0f));
-		spawnCamera(at(0.5, 1.62, CAM_START_Z), 180.0f, 0.0f);
+		spawnCamera(at(0.5, 1.62, CAM_START_Z), 180.0f, 6.0f);
 	}
 
 	@Override
@@ -70,7 +70,7 @@ final class HelpRun extends BaseRun {
 		double dolly = p;
 		double camZ = CAM_START_Z + (CAM_END_Z - CAM_START_Z) * dolly;
 		Vec3 cpos = at(0.5, 1.62, camZ);
-		cam(cpos, 180.0f, 0.0f);
+		cam(cpos, 180.0f, 6.0f);
 
 		// the figure turns, slowly, only in the middle of the dream
 		float yaw = (float) (180.0 - 180.0 * Kit.ease((p - 0.2) / 0.6));
