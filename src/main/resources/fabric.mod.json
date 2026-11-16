@@ -1,0 +1,31 @@
+{
+	"schemaVersion": 1,
+	"id": "yume",
+	"version": "${version}",
+	"name": "Yume (Dream Mod)",
+	"description": "Sleep, and you will dream.",
+	"authors": ["amaguri"],
+	"license": "All-Rights-Reserved",
+	"icon": "assets/yume/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["net.amaguri.yume.YumeMod"],
+		"client": ["net.amaguri.yume.client.YumeClient"],
+		"voicechat": ["net.amaguri.yume.voice.YumeVoicePlugin"]
+	},
+	"mixins": [
+		"yume.director.mixins.json",
+		"yume.isolation.mixins.json",
+		"yume.stage.mixins.json",
+		{ "config": "yume.client.mixins.json", "environment": "client" }
+	],
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.2",
+		"java": ">=25",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"voicechat": "*"
+	}
+}
