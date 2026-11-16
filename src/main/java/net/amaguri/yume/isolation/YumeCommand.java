@@ -224,6 +224,7 @@ final class YumeCommand {
 		cam.pitch = p.getXRot();
 		YumeConfig.get().cameras.put(name, cam);
 		YumeConfig.save();
+		net.amaguri.yume.director.DreamDirector.refreshCameraChunks(ctx.getSource().getServer());
 		return reply(ctx, String.format(Locale.ROOT, "カメラ %s を保存しました（%s  %.2f %.2f %.2f  向き %.1f / %.1f）",
 				name, cam.dimension, cam.x, cam.y, cam.z, cam.yaw, cam.pitch));
 	}
@@ -271,6 +272,7 @@ final class YumeCommand {
 	private static int reload(CommandContext<CommandSourceStack> ctx) {
 		MinecraftServer server = server(ctx);
 		YumeConfig.load(server);
+		net.amaguri.yume.director.DreamDirector.refreshCameraChunks(server);
 		Isolation.sync(server);
 		for (ServerPlayer p : server.getPlayerList().getPlayers()) {
 			server.getCommands().sendCommands(p);

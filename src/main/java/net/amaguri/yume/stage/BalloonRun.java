@@ -10,13 +10,16 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.decoration.Mannequin;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.server.level.ServerPlayer;
+
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.amaguri.yume.net.BellyPayload;
 
 import net.amaguri.yume.core.YumeConfig;
 
@@ -96,29 +99,39 @@ final class BalloonRun extends BaseRun {
 		String name = YumeConfig.get().cast == null ? "" : YumeConfig.get().cast.balloon;
 		eater = track(Kit.mannequin(level, name, at(0.5, 0, 0.5), 0.0f));
 		eater.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(MENU[0]));
-		spawnCamera(at(0.5, 1.8, 7.0), 180.0f, 0.0f);
+		spawnCamera(at(0.5, 1.4, 5.0), 180.0f, -3.0f);
 	}
 
-	private double scaleAt(int t, double p) {
-		if (p < EAT_END) {
-			double base = 1.0 + (MAX_SCALE - 1.0) * Math.pow(Kit.ease(p / EAT_END), 1.1);
-			int bite = Math.max(1, Math.round((float) (dur * EAT_END) / BITES));
-			double since = (t % bite) / (double) bite;
-			return base + 0.08 * Math.max(0.0, 1.0 - since * 3.0) * base / MAX_SCALE;
+	/** Belly roundness 0..1: grows bite by bite while eating, then stays at 1. */
+	private double bellyAt(int t, double p) {
+		if (p >= EAT_END) {
+			return 1.0;
 		}
-		if (p < WOBBLE_END) {
-			double w = (p - EAT_END) / (WOBBLE_END - EAT_END);
-			return MAX_SCALE + 0.12 * Math.sin(w * 18.0);
+		int bite = Math.max(1, Math.round((float) (dur * EAT_END) / BITES));
+		double done = t / bite + Kit.ease((t % bite) / (double) bite);
+		return Math.min(1.0, done / BITES);
+	}
+
+	private void sendBelly(float belly) {
+		if (eater == null) {
+			return;
 		}
-		return MAX_SCALE;
+		BellyPayload payload = new BellyPayload(eater.getId(), belly);
+		for (ServerPlayer pl : level.players()) {
+			ServerPlayNetworking.send(pl, payload);
+		}
+	}
+
+	@Override
+	void onCleanup() {
+		sendBelly(0.0f);
 	}
 
 	@Override
 	void step(int t, double p) {
-		double scale = scaleAt(t, p);
-		var scaleAttr = eater.getAttribute(Attributes.SCALE);
-		if (scaleAttr != null) {
-			scaleAttr.setBaseValue(scale);
+		final double scale = 1.0; // the body keeps its size; only the belly swells (client side)
+		if (t % 2 == 0 || p >= EAT_END) {
+			sendBelly((float) bellyAt(t, p));
 		}
 
 		// ---- eating ----
@@ -170,13 +183,13 @@ final class BalloonRun extends BaseRun {
 		Kit.face(eater, yaw, 0.0f);
 
 		// ---- camera ----
-		Vec3 cpos = at(0.5, 1.8, 7.0);
+		Vec3 cpos = at(0.5, 1.4, 5.0);
 		double aim = Kit.ease((p - 0.62) / 0.2);
 		double targetY = eater.getY() + 0.9 * scale;
 		double dy = targetY - cpos.y;
 		double dz = cpos.z - eater.getZ();
 		double lookUp = Math.toDegrees(Math.atan2(dy, dz));
-		float pitch = (float) (0.0 + (-lookUp) * aim);
+		float pitch = (float) (-3.0 + (-lookUp + 3.0) * aim);
 		cam(cpos, 180.0f, Math.max(-80.0f, Math.min(12.0f, pitch)));
 	}
 }

@@ -11,7 +11,8 @@
 		"ClientSuggestionProviderMixin",
 		"HudMixin",
 		"ToastManagerMixin",
-		"OptionsMixin"
+		"OptionsMixin",
+		"PlayerModelMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

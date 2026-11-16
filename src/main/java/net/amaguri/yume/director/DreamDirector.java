@@ -13,7 +13,6 @@ import java.util.UUID;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
@@ -25,6 +24,7 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.network.protocol.game.ClientboundSetCameraPacket;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -72,6 +72,7 @@ public final class DreamDirector {
 	private static final class Viewer {
 		final UUID id;
 		Entity cam;
+		int age;
 
 		Viewer(UUID id, Entity cam) {
 			this.id = id;
@@ -111,6 +112,15 @@ public final class DreamDirector {
 	}
 
 	private static Session session;
+	/** Chunks of the fixed cameras (waterfall / room, plus a ring of one chunk) kept force-loaded at all times. */
+	private record ChunkRef(String dim, int cx, int cz) {
+	}
+
+	private static final Set<ChunkRef> forcedCamChunks = new HashSet<>();
+	/** DreamEndPayload goes out a little after the walk back, so the black screen covers the return loading. */
+	private static final Map<UUID, Integer> pendingEnd = new LinkedHashMap<>();
+	private static final int END_DELAY_TICKS = 20;
+	private static final int[] CAMERA_RESEND_AGES = { 5, 10, 20, 40 };
 	private static int tickCounter;
 	/** After a start attempt the sleep check rests for a moment, so a failing start cannot repeat every tick. */
 	private static int sleepCooldownUntil;
@@ -123,30 +133,18 @@ public final class DreamDirector {
 			session = null;
 			tickCounter = 0;
 			sleepCooldownUntil = 0;
+			forcedCamChunks.clear();
+			pendingEnd.clear();
 			DreamLock.clear();
 		});
+		ServerLifecycleEvents.SERVER_STARTED.register(server -> safe("camera-chunks", () -> refreshCameraChunks(server)));
 		ServerTickEvents.END_SERVER_TICK.register(DreamDirector::onTick);
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> safe("join", () -> restoreStale(server, handler.getPlayer())));
 		ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> safe("leave", () -> onLeave(server, handler.getPlayer())));
 		ServerLifecycleEvents.SERVER_STOPPING.register(server -> safe("stopping", () -> {
 			abortAll(server);
+			flushPendingEnds(server);
 			YumeState.save(server);
-		}));
-		PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, be) -> {
-			try {
-				if (!(player instanceof ServerPlayer sp)) return true;
-				if (Groups.stage() == RevealStage.FINALE) return true;
-				if (Groups.sideOf(sp) != Groups.Side.LOST) return true;
-				return !inRoom(level, pos);
-			} catch (Throwable t) {
-				return true;
-			}
-		});
-		PlayerBlockBreakEvents.AFTER.register((level, player, pos, state, be) -> safe("break", () -> {
-			if (!(player instanceof ServerPlayer sp) || !(level instanceof ServerLevel sl)) return;
-			if (Groups.stage() == RevealStage.FINALE) return;
-			if (Groups.sideOf(sp) != Groups.Side.DREAMER) return;
-			if (inRoom(level, pos)) finale(sl.getServer());
 		}));
 	}
 
@@ -241,6 +239,44 @@ public final class DreamDirector {
 		safe("abort-save", () -> YumeState.save(server));
 	}
 
+	/**
+	 * Keep the chunks around config.cameras waterfall/room force-loaded (always, not only during a dream).
+	 * Loads the new ones and releases the ones of an old camera position. Safe to call any time.
+	 */
+	public static void refreshCameraChunks(MinecraftServer server) {
+		try {
+			Set<ChunkRef> want = new HashSet<>();
+			Map<String, YumeConfig.Cam> cams = YumeConfig.get().cameras;
+			if (cams != null) {
+				for (String key : new String[] { "waterfall", "room" }) {
+					YumeConfig.Cam c = cams.get(key);
+					if (c == null || levelOf(server, c.dimension) == null) continue;
+					int cx = ((int) Math.floor(c.x)) >> 4;
+					int cz = ((int) Math.floor(c.z)) >> 4;
+					for (int dx = -1; dx <= 1; dx++) {
+						for (int dz = -1; dz <= 1; dz++) want.add(new ChunkRef(c.dimension, cx + dx, cz + dz));
+					}
+				}
+			}
+			for (ChunkRef r : new ArrayList<>(forcedCamChunks)) {
+				if (want.contains(r)) continue;
+				ServerLevel lvl = levelOf(server, r.dim());
+				if (lvl != null) lvl.setChunkForced(r.cx(), r.cz(), false);
+				forcedCamChunks.remove(r);
+			}
+			for (ChunkRef r : want) {
+				if (forcedCamChunks.contains(r)) continue;
+				ServerLevel lvl = levelOf(server, r.dim());
+				if (lvl == null) continue;
+				lvl.setChunkForced(r.cx(), r.cz(), true);
+				lvl.getChunk(r.cx(), r.cz());
+				forcedCamChunks.add(r);
+			}
+		} catch (Throwable t) {
+			YumeMod.LOG.error("[yume] camera chunk refresh failed", t);
+		}
+	}
+
 	/** Finish the secret: set finale, unhide everything. Called by a dreamer breaking the room or by /yume finale. */
 	public static void finale(MinecraftServer server) {
 		YumeState.get().finale = true;
@@ -275,6 +311,7 @@ public final class DreamDirector {
 					}
 				}
 			}
+			if (!pendingEnd.isEmpty()) safe("end-payloads", () -> flushDueEnds(server, false));
 			if (tickCounter % 20 == 7) {
 				safe("sweep", () -> sweepStale(server));
 			}
@@ -343,6 +380,11 @@ public final class DreamDirector {
 					DreamLock.lock(v.id, cam);
 				}
 				keepNear(p, cam);
+				v.age++;
+				for (int a : CAMERA_RESEND_AGES) {
+					// the client may not have the dimension yet when the first camera packet arrives
+					if (v.age == a) p.connection.send(new ClientboundSetCameraPacket(cam));
+				}
 				if (s.phase == Phase.MAIN && s.scene == Scene.WATERFALL && s.t % 20 == 0) {
 					waterfallSound(p, s.t / 20);
 				}
@@ -419,9 +461,18 @@ public final class DreamDirector {
 			if (c == null) return "カメラ未設定: " + key;
 			ServerLevel lvl = levelOf(server, c.dimension);
 			if (lvl == null) return "カメラのディメンションがありません: " + key;
+			refreshCameraChunks(server);
 			lvl.getChunk(((int) Math.floor(c.x)) >> 4, ((int) Math.floor(c.z)) >> 4);
 			Entity a = CameraAnchor.spawn(lvl, new Vec3(c.x, c.y, c.z), c.yaw, c.pitch);
 			if (a == null) return "カメラを作れません: " + key;
+			if (a.isRemoved() || lvl.getEntity(a.getId()) == null) {
+				try {
+					a.discard();
+				} catch (Throwable ignored) {
+					// already gone
+				}
+				return "カメラの実体がワールドに追加されていません: " + key;
+			}
 			s.anchor = a;
 			s.cam = a;
 			return null;
@@ -515,13 +566,15 @@ public final class DreamDirector {
 				YumeState.save(server);
 			}
 			if (!(cam.level() instanceof ServerLevel lvl)) throw new IllegalStateException("camera is not in a server level");
+			pendingEnd.remove(p.getUUID());
+			// first: the client starts fading to black before the loading screen of the dimension change
+			send(p, payload);
 			p.setGameMode(GameType.SPECTATOR);
 			p.teleportTo(lvl, cam.getX(), eyeY(p, cam), cam.getZ(), Set.<Relative>of(), cam.getYRot(), cam.getXRot(), false);
 			s.viewers.put(p.getUUID(), new Viewer(p.getUUID(), cam));
 			s.participants.add(p.getUUID());
 			DreamLock.lock(p.getUUID(), cam);
 			p.setCamera(cam);
-			send(p, payload);
 			return true;
 		} catch (Throwable t) {
 			YumeMod.LOG.error("[yume] could not move a player into the dream", t);
@@ -652,7 +705,6 @@ public final class DreamDirector {
 	private static boolean restorePlayer(MinecraftServer server, ServerPlayer p, YumeState.Saved sv) {
 		try {
 			DreamLock.release(p.getUUID());
-			send(p, new DreamEndPayload());
 			if (p.getCamera() != p) p.setCamera(p);
 			GameType gt = sv.gameMode == null ? GameType.SURVIVAL : GameType.byName(sv.gameMode, GameType.SURVIVAL);
 			p.setGameMode(gt);
@@ -673,11 +725,27 @@ public final class DreamDirector {
 			boolean ok = p.teleportTo(lvl, x, y, z, Set.<Relative>of(), yaw, pitch, false);
 			if (!ok || p.isRemoved() || p.hasDisconnected()) return false;
 			p.resetFallDistance();
+			pendingEnd.put(p.getUUID(), tickCounter + END_DELAY_TICKS);
 			return true;
 		} catch (Throwable t) {
 			YumeMod.LOG.error("[yume] could not restore a player", t);
 			return false;
 		}
+	}
+
+	private static void flushDueEnds(MinecraftServer server, boolean all) {
+		Iterator<Map.Entry<UUID, Integer>> it = pendingEnd.entrySet().iterator();
+		while (it.hasNext()) {
+			Map.Entry<UUID, Integer> e = it.next();
+			if (!all && tickCounter < e.getValue()) continue;
+			it.remove();
+			ServerPlayer p = server.getPlayerList().getPlayer(e.getKey());
+			if (p != null && !isInDream(p)) send(p, new DreamEndPayload());
+		}
+	}
+
+	private static void flushPendingEnds(MinecraftServer server) {
+		flushDueEnds(server, true);
 	}
 
 	/** Puts back an online player who still has an inDream entry but is not in the live session. */

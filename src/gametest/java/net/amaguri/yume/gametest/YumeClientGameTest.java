@@ -103,6 +103,31 @@ public class YumeClientGameTest implements FabricClientGameTest {
 			context.takeScreenshot("41_room_from_eye");
 			context.waitTicks(140);
 
+			// camera dream in another dimension (the End), like the real setup
+			server.runOnServer(s -> {
+				YumeConfig.Cam cam = new YumeConfig.Cam();
+				cam.dimension = "minecraft:the_end";
+				cam.x = 20;
+				cam.y = 75;
+				cam.z = 20;
+				cam.yaw = 135;
+				cam.pitch = 25;
+				YumeConfig.get().cameras.put("room", cam);
+				DreamDirector.refreshCameraChunks(s);
+			});
+			context.waitTicks(40);
+			String m3 = server.computeOnServer(s -> DreamDirector.playTest(s, Scene.ROOM, s.getPlayerList().getPlayers()));
+			log("end camera -> %s", m3);
+			context.waitTicks(3);
+			context.takeScreenshot("50_end_enter");
+			context.waitTicks(57);
+			context.takeScreenshot("51_end_mid");
+			context.waitTicks(80);
+			context.takeScreenshot("52_end_late");
+			context.waitTicks(120);
+			context.takeScreenshot("53_end_back");
+			checkRestored(context, sp, "end camera");
+
 			server.runCommand("execute as @p run yume timespeed 4");
 			server.runCommand("execute as @p run yume status");
 			context.waitTicks(20);

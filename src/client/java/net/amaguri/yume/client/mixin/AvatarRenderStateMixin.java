@@ -11,6 +11,8 @@ import net.amaguri.yume.client.YumeRenderFlag;
 public abstract class AvatarRenderStateMixin implements YumeRenderFlag {
 	@Unique
 	private byte yume$mode;
+	@Unique
+	private float yume$belly;
 
 	@Override
 	public byte yume$getMode() {
@@ -20,5 +22,15 @@ public abstract class AvatarRenderStateMixin implements YumeRenderFlag {
 	@Override
 	public void yume$setMode(byte mode) {
 		this.yume$mode = mode;
+	}
+
+	@Override
+	public float yume$getBelly() {
+		return this.yume$belly;
+	}
+
+	@Override
+	public void yume$setBelly(float belly) {
+		this.yume$belly = belly;
 	}
 }

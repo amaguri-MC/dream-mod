@@ -49,6 +49,7 @@ public final class DreamClient {
 		ClientPlayNetworking.registerGlobalReceiver(RevealPayload.TYPE, (payload, context) -> RevealClient.setEntries(payload.entries()));
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> resetAll());
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> resetAll());
+		BellyClient.init();
 		ClientTickEvents.END_CLIENT_TICK.register(DreamClient::tick);
 
 		// Every vanilla HUD element is skipped while a dream is on.
@@ -177,6 +178,7 @@ public final class DreamClient {
 		float cover = fadeAlpha(Math.min(elapsed, duration));
 		active = false;
 		RevealClient.clearWhiteIds();
+		BellyClient.clear();
 		Minecraft mc = Minecraft.getInstance();
 		if (savedCamera != null && savedCamera != CameraType.FIRST_PERSON && mc.options != null) {
 			mc.options.setCameraType(savedCamera);
@@ -195,6 +197,7 @@ public final class DreamClient {
 		text = "";
 		charAt = new int[0];
 		RevealClient.reset();
+		BellyClient.clear();
 	}
 
 	private static void tick(Minecraft mc) {
@@ -204,6 +207,7 @@ public final class DreamClient {
 				exitTicks = 0;
 				savedCamera = null;
 				RevealClient.clearWhiteIds();
+				BellyClient.clear();
 			}
 			return;
 		}

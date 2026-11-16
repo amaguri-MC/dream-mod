@@ -11,5 +11,6 @@ public final class YumeNetwork {
 		PayloadTypeRegistry.clientboundPlay().register(DreamStartPayload.TYPE, DreamStartPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(DreamEndPayload.TYPE, DreamEndPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(RevealPayload.TYPE, RevealPayload.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(BellyPayload.TYPE, BellyPayload.CODEC);
 	}
 }

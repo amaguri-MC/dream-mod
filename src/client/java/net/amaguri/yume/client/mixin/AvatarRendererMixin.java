@@ -9,6 +9,7 @@ import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.world.entity.Avatar;
 
+import net.amaguri.yume.client.BellyClient;
 import net.amaguri.yume.client.RevealClient;
 import net.amaguri.yume.client.YumeRenderFlag;
 
@@ -19,6 +20,7 @@ public abstract class AvatarRendererMixin {
 	private void yume$conceal(Avatar entity, AvatarRenderState state, float partialTick, CallbackInfo ci) {
 		byte mode = RevealClient.renderMode(entity);
 		((YumeRenderFlag) (Object) state).yume$setMode(mode);
+		((YumeRenderFlag) (Object) state).yume$setBelly(BellyClient.get(entity.getId()));
 		if (mode == RevealClient.MODE_NORMAL) {
 			if (RevealClient.hidesInfo(entity.getUUID())) {
 				state.nameTag = null;
