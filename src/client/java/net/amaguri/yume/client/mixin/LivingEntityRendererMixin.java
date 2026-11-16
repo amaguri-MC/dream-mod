@@ -1,23 +1,42 @@
 package net.amaguri.yume.client.mixin;
 
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import net.minecraft.client.model.player.PlayerModel;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
+import net.minecraft.client.renderer.entity.RenderLayerParent;
+import net.minecraft.client.renderer.entity.layers.RenderLayer;
+import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.resources.Identifier;
 
+import net.amaguri.yume.client.BellyLayer;
 import net.amaguri.yume.client.RevealClient;
 import net.amaguri.yume.client.YumeRenderFlag;
 
 /** Silhouettes use a flat render type: black takes any light as black, white ignores light and shading. */
 @Mixin(LivingEntityRenderer.class)
 public abstract class LivingEntityRendererMixin {
+	@Shadow
+	protected abstract boolean addLayer(RenderLayer<?, ?> layer);
+
+	/** Every avatar renderer (players and mannequins alike) gets the belly layer, whatever the registration order. */
+	@SuppressWarnings("unchecked")
+	@Inject(method = "<init>", at = @At("TAIL"))
+	private void yume$addBellyLayer(CallbackInfo ci) {
+		if ((Object) this instanceof AvatarRenderer<?>) {
+			this.addLayer(new BellyLayer((RenderLayerParent<AvatarRenderState, PlayerModel>) (Object) this));
+		}
+	}
+
 	@Inject(method = "getRenderType(Lnet/minecraft/client/renderer/entity/state/LivingEntityRenderState;ZZZ)Lnet/minecraft/client/renderer/rendertype/RenderType;", at = @At("HEAD"), cancellable = true)
 	private void yume$silhouetteType(LivingEntityRenderState state, boolean bodyVisible, boolean translucent, boolean glowing, CallbackInfoReturnable<RenderType> cir) {
 		if (!(state instanceof AvatarRenderState avatar)) {

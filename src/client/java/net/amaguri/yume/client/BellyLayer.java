@@ -44,7 +44,10 @@ public class BellyLayer extends RenderLayer<AvatarRenderState, PlayerModel> {
 		RenderType type = mode == RevealClient.MODE_WHITE ? RenderTypes.eyes(tex) : RenderTypes.entityCutout(tex);
 		poseStack.pushPose();
 		this.getParentModel().body.translateAndRotate(poseStack);
-		nodes.submitModel(MODEL, new BellyModel.Shape(Math.min(1f, belly)), poseStack, type, light, OverlayTexture.NO_OVERLAY, -1, null, state.outlineColor, null);
+		BellyModel.Shape shape = new BellyModel.Shape(Math.min(1f, belly));
+		// Poses the parts now as well, in case the renderer does not call setupAnim itself.
+		MODEL.setupAnim(shape);
+		nodes.submitModel(MODEL, shape, poseStack, type, light, OverlayTexture.NO_OVERLAY, -1, null, state.outlineColor, null);
 		poseStack.popPose();
 	}
 

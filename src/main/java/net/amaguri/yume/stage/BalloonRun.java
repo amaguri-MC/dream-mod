@@ -99,7 +99,7 @@ final class BalloonRun extends BaseRun {
 		String name = YumeConfig.get().cast == null ? "" : YumeConfig.get().cast.balloon;
 		eater = track(Kit.mannequin(level, name, at(0.5, 0, 0.5), 0.0f));
 		eater.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(MENU[0]));
-		spawnCamera(at(4.8, 1.5, 0.5), 90.0f, 3.0f);
+		spawnCamera(at(3.4, 1.3, 0.5), 90.0f, 3.0f);
 	}
 
 	/** Belly roundness 0..1: grows bite by bite while eating, then stays at 1. */
@@ -184,7 +184,7 @@ final class BalloonRun extends BaseRun {
 
 		// ---- camera ----
 		// side view: the round belly reads best in profile
-		Vec3 cpos = at(4.8, 1.5, 0.5);
+		Vec3 cpos = at(3.4, 1.3, 0.5);
 		double aim = Kit.ease((p - 0.62) / 0.2);
 		double targetY = eater.getY() + 0.9 * scale;
 		double dy = targetY - cpos.y;

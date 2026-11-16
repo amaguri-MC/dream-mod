@@ -4,8 +4,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityRenderLayerRegistrationCallback;
-import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 
 import net.amaguri.yume.net.BellyPayload;
 
@@ -22,11 +20,6 @@ public final class BellyClient {
 				BELLY.remove(payload.entityId());
 			} else {
 				BELLY.put(payload.entityId(), Math.min(1f, payload.belly()));
-			}
-		});
-		LivingEntityRenderLayerRegistrationCallback.EVENT.register((entityType, renderer, helper, context) -> {
-			if (renderer instanceof AvatarRenderer<?> avatarRenderer) {
-				helper.register(new BellyLayer(avatarRenderer));
 			}
 		});
 	}
