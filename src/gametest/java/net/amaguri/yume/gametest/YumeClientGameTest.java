@@ -80,6 +80,29 @@ public class YumeClientGameTest implements FabricClientGameTest {
 				checkRestored(context, sp, "day" + d);
 			}
 
+			// camera height check: the player's own view vs a ROOM dream camera saved at the same eye position
+			server.runCommand("time set noon");
+			server.runCommand("tp @p ~ ~ ~ 135 15");
+			context.waitTicks(20);
+			context.takeScreenshot("40_eye_reference");
+			server.runOnServer(s -> {
+				ServerPlayer p = s.getPlayerList().getPlayers().get(0);
+				YumeConfig.Cam cam = new YumeConfig.Cam();
+				cam.dimension = "minecraft:overworld";
+				cam.x = p.getX();
+				cam.y = p.getEyeY();
+				cam.z = p.getZ();
+				cam.yaw = 135;
+				cam.pitch = 15;
+				YumeConfig.get().cameras.put("room", cam);
+				log("eye reference at %.2f %.2f %.2f", p.getX(), p.getEyeY(), p.getZ());
+			});
+			String m2 = server.computeOnServer(s -> DreamDirector.playTest(s, Scene.ROOM, s.getPlayerList().getPlayers()));
+			log("eye test -> %s", m2);
+			context.waitTicks(100);
+			context.takeScreenshot("41_room_from_eye");
+			context.waitTicks(140);
+
 			server.runCommand("execute as @p run yume timespeed 4");
 			server.runCommand("execute as @p run yume status");
 			context.waitTicks(20);
