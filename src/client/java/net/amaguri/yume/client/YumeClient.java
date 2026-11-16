@@ -6,5 +6,6 @@ import net.fabricmc.api.ClientModInitializer;
 public final class YumeClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
+		DreamClient.init();
 	}
 }

@@ -2,6 +2,18 @@
 	"required": true,
 	"package": "net.amaguri.yume.client.mixin",
 	"compatibilityLevel": "JAVA_25",
-	"client": [],
-	"injectors": { "defaultRequire": 1 }
+	"client": [
+		"AvatarRenderStateMixin",
+		"AvatarRendererMixin",
+		"LivingEntityRendererMixin",
+		"EntityRenderDispatcherMixin",
+		"ClientPacketListenerMixin",
+		"ClientSuggestionProviderMixin",
+		"HudMixin",
+		"ToastManagerMixin",
+		"OptionsMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
 }

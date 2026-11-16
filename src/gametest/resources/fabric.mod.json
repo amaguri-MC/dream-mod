@@ -1,0 +1,11 @@
+{
+	"schemaVersion": 1,
+	"id": "yume-gametest",
+	"version": "1.0.0",
+	"name": "Yume client game test",
+	"environment": "client",
+	"entrypoints": {
+		"fabric-client-gametest": ["net.amaguri.yume.gametest.YumeClientGameTest"]
+	},
+	"depends": { "yume": "*" }
+}

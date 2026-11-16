@@ -1,5 +1,7 @@
 name: client-gametest
 on:
+  push:
+    branches-ignore: [builds, gametest-out]
   workflow_dispatch:
 
 permissions:
