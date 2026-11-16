@@ -128,6 +128,29 @@ public class YumeClientGameTest implements FabricClientGameTest {
 			context.takeScreenshot("53_end_back");
 			checkRestored(context, sp, "end camera");
 
+			// belly close-up: a mannequin with belly 0 / 0.5 / 1
+			server.runCommand("time set noon");
+			server.runCommand("summon minecraft:mannequin ~3 ~ ~ {Tags:[\"yume_belly_test\"],immovable:1b,Rotation:[90f,0f]}");
+			server.runCommand("tp @p ~ ~ ~ -90 10");
+			context.waitTicks(20);
+			for (float b : new float[] {0f, 0.5f, 1f}) {
+				final float belly = b;
+				server.runOnServer(s -> {
+					ServerPlayer p = s.getPlayerList().getPlayers().get(0);
+					for (net.minecraft.world.entity.Entity e : p.level().getEntitiesOfClass(net.minecraft.world.entity.Entity.class, p.getBoundingBox().inflate(8),
+							x -> x.entityTags().contains("yume_belly_test"))) {
+						net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(p, new net.amaguri.yume.net.BellyPayload(e.getId(), belly));
+						log("belly test entity %d belly %.1f", e.getId(), belly);
+					}
+				});
+				context.waitTicks(10);
+				context.takeScreenshot("60_belly_front_" + (int) (b * 10));
+			}
+			server.runCommand("tp @p ~ ~ ~ -45 10");
+			server.runCommand("tp @p ~-2 ~ ~2");
+			context.waitTicks(10);
+			context.takeScreenshot("61_belly_angle_10");
+
 			server.runCommand("execute as @p run yume timespeed 4");
 			server.runCommand("execute as @p run yume status");
 			context.waitTicks(20);

@@ -146,6 +146,17 @@ public final class DreamDirector {
 			flushPendingEnds(server);
 			YumeState.save(server);
 		}));
+		// the trapped group cannot break the white room (until the secret is over); no automatic finale
+		net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, be) -> {
+			try {
+				if (!(player instanceof ServerPlayer sp)) return true;
+				if (Groups.stage() == RevealStage.FINALE) return true;
+				if (Groups.sideOf(sp) != Groups.Side.LOST) return true;
+				return !inRoom(level, pos);
+			} catch (Throwable t) {
+				return true;
+			}
+		});
 	}
 
 	// ------------------------------------------------------------------ public contract
