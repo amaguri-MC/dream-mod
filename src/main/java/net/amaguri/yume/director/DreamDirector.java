@@ -516,7 +516,7 @@ public final class DreamDirector {
 			}
 			if (!(cam.level() instanceof ServerLevel lvl)) throw new IllegalStateException("camera is not in a server level");
 			p.setGameMode(GameType.SPECTATOR);
-			p.teleportTo(lvl, cam.getX(), cam.getY(), cam.getZ(), Set.<Relative>of(), cam.getYRot(), cam.getXRot(), false);
+			p.teleportTo(lvl, cam.getX(), eyeY(p, cam), cam.getZ(), Set.<Relative>of(), cam.getYRot(), cam.getXRot(), false);
 			s.viewers.put(p.getUUID(), new Viewer(p.getUUID(), cam));
 			s.participants.add(p.getUUID());
 			DreamLock.lock(p.getUUID(), cam);
@@ -721,10 +721,18 @@ public final class DreamDirector {
 
 	// ------------------------------------------------------------------ helpers
 
+	/**
+	 * Put the viewer's own eyes where the camera is: the client culls the world from the player's eye position,
+	 * so a viewer whose head sits inside a ceiling sees the sky through it.
+	 */
+	private static double eyeY(ServerPlayer p, Entity cam) {
+		return cam instanceof net.minecraft.world.entity.player.Player ? cam.getY() : cam.getY() - p.getEyeHeight();
+	}
+
 	private static void keepNear(ServerPlayer p, Entity cam) {
 		if (!(cam.level() instanceof ServerLevel cl)) return;
 		if (p.level() != cl || p.distanceToSqr(cam) > 64.0) {
-			p.teleportTo(cl, cam.getX(), cam.getY(), cam.getZ(), Set.<Relative>of(), cam.getYRot(), cam.getXRot(), false);
+			p.teleportTo(cl, cam.getX(), eyeY(p, cam), cam.getZ(), Set.<Relative>of(), cam.getYRot(), cam.getXRot(), false);
 		}
 		if (p.getCamera() != cam) p.setCamera(cam);
 	}
