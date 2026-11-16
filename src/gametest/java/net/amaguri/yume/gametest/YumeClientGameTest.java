@@ -146,10 +146,12 @@ public class YumeClientGameTest implements FabricClientGameTest {
 				context.waitTicks(10);
 				context.takeScreenshot("60_belly_front_" + (int) (b * 10));
 			}
-			server.runCommand("tp @p ~ ~ ~ -45 10");
-			server.runCommand("tp @p ~-2 ~ ~2");
+			server.runCommand("execute as @e[tag=yume_belly_test] at @s run tp @s ~ ~ ~ 0 0");
 			context.waitTicks(10);
-			context.takeScreenshot("61_belly_angle_10");
+			context.takeScreenshot("61_belly_side_10");
+			server.runCommand("execute as @e[tag=yume_belly_test] at @s run tp @s ~ ~ ~ 45 0");
+			context.waitTicks(10);
+			context.takeScreenshot("62_belly_diag_10");
 
 			server.runCommand("execute as @p run yume timespeed 4");
 			server.runCommand("execute as @p run yume status");
