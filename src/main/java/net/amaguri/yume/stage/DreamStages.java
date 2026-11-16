@@ -85,7 +85,7 @@ public final class DreamStages {
 	private static BaseRun create(ServerLevel level, Scene scene, int dur) {
 		return switch (scene) {
 			case SHEEP -> new SheepRun(level, new BlockPos(SPACING, BASE_Y, SPACING), dur);
-			case DIAMOND -> new DiamondRun(level, new BlockPos(2 * SPACING, BASE_Y, SPACING), dur);
+			case DIAMOND -> new DiamondRun(level, new BlockPos(2 * SPACING + 8, BASE_Y, SPACING + 8), dur);
 			case BALLOON -> new BalloonRun(level, new BlockPos(3 * SPACING, BASE_Y, SPACING), dur);
 			case HELP -> new HelpRun(level, new BlockPos(4 * SPACING, BASE_Y, SPACING), dur);
 			default -> null;
