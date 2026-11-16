@@ -75,14 +75,16 @@ public class YumeClientGameTest implements FabricClientGameTest {
 				context.takeScreenshot("20_day" + d);
 				context.waitTicks(day == 4 ? 400 : 160);
 				long time = server.computeOnServer(s -> s.overworld().getOverworldClockTime() % 24000);
-				log("day %d done: dreamsSeen=%d dayTime=%d", d, server.computeOnServer(s -> YumeState.get().dreamsSeen), time);
+				int seen = server.computeOnServer(s -> YumeState.get().dreamsSeen);
+				log("day %d done: dreamsSeen=%d dayTime=%d", d, seen, time);
 				checkRestored(context, sp, "day" + d);
 			}
 
 			server.runCommand("execute as @p run yume timespeed 4");
 			server.runCommand("execute as @p run yume status");
 			context.waitTicks(20);
-			log("timeSpeed=%d", server.computeOnServer(s -> YumeState.get().timeSpeed));
+			int speed = server.computeOnServer(s -> YumeState.get().timeSpeed);
+			log("timeSpeed=%d", speed);
 			context.takeScreenshot("30_after");
 		}
 	}
