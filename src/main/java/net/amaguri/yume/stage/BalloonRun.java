@@ -99,7 +99,7 @@ final class BalloonRun extends BaseRun {
 		String name = YumeConfig.get().cast == null ? "" : YumeConfig.get().cast.balloon;
 		eater = track(Kit.mannequin(level, name, at(0.5, 0, 0.5), 0.0f));
 		eater.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(MENU[0]));
-		spawnCamera(at(3.4, 1.3, 0.5), 90.0f, 3.0f);
+		spawnCamera(at(-2.4, 1.3, -1.6), -54.0f, 3.0f);
 	}
 
 	/** Belly roundness 0..1: grows bite by bite while eating, then stays at 1. */
@@ -183,17 +183,19 @@ final class BalloonRun extends BaseRun {
 		Kit.face(eater, yaw, 0.0f);
 
 		// ---- camera ----
-		// side view: the round belly reads best in profile
-		// while he floats up the camera rises with him (a bit slower) and backs off, so the round belly stays in view
+		// front-diagonal view (he faces -x): the belly bulges toward the camera.
+		// While he floats up the camera rises with him (a bit slower) and backs off, so the belly stays in view.
 		double rise = Math.max(0.0, lift - 1.0) * 0.8;
 		double back = Math.min(3.0, lift * 0.25);
-		Vec3 cpos = at(3.4 + back, 1.3 + rise, 0.5);
+		Vec3 cpos = at(-2.4 - back * 0.8, 1.3 + rise, -1.6 - back * 0.6);
 		double aim = Kit.ease((p - 0.62) / 0.2);
+		double tx = eater.getX() - cpos.x;
+		double tz = eater.getZ() - cpos.z;
+		double horiz = Math.max(0.5, Math.sqrt(tx * tx + tz * tz));
+		float camYaw = (float) Math.toDegrees(Math.atan2(-tx, tz));
 		double targetY = eater.getY() + 0.9 * scale;
-		double dy = targetY - cpos.y;
-		double dx = cpos.x - eater.getX();
-		double lookUp = Math.toDegrees(Math.atan2(dy, dx));
+		double lookUp = Math.toDegrees(Math.atan2(targetY - cpos.y, horiz));
 		float pitch = (float) (3.0 + (-lookUp - 3.0) * aim);
-		cam(cpos, 90.0f, Math.max(-80.0f, Math.min(12.0f, pitch)));
+		cam(cpos, camYaw, Math.max(-80.0f, Math.min(12.0f, pitch)));
 	}
 }
