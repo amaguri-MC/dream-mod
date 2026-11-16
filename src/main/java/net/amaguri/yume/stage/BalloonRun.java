@@ -184,7 +184,10 @@ final class BalloonRun extends BaseRun {
 
 		// ---- camera ----
 		// side view: the round belly reads best in profile
-		Vec3 cpos = at(3.4, 1.3, 0.5);
+		// while he floats up the camera rises with him (a bit slower) and backs off, so the round belly stays in view
+		double rise = Math.max(0.0, lift - 1.0) * 0.8;
+		double back = Math.min(3.0, lift * 0.25);
+		Vec3 cpos = at(3.4 + back, 1.3 + rise, 0.5);
 		double aim = Kit.ease((p - 0.62) / 0.2);
 		double targetY = eater.getY() + 0.9 * scale;
 		double dy = targetY - cpos.y;
