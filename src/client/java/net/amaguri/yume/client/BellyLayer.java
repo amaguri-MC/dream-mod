@@ -58,6 +58,16 @@ public class BellyLayer extends RenderLayer<AvatarRenderState, PlayerModel> {
 			return 1f + 1.5f * belly;
 		}
 
+		/** Front-to-back size: 4 px at rest, 12 px at full belly (3 times). */
+		public static float depthFactor(float belly) {
+			return 1f + 2f * belly;
+		}
+
+		/** The belly sticks out mostly to the front (-z): its centre moves forward by this many px. */
+		public static float forwardShift(float belly) {
+			return 2f * belly;
+		}
+
 		/** The arms' sideways push (model px) so they stay outside the belly. */
 		public static float armPush(float belly) {
 			return 7f * belly;
@@ -73,13 +83,13 @@ public class BellyLayer extends RenderLayer<AvatarRenderState, PlayerModel> {
 
 		private static final int SLICES = 12;
 		/** Half-size fractions of the three boxes that make one round-ish slice (corners cut). */
-		private static final float[][] STEPS = { { 0.966f, 0.259f }, { 0.707f, 0.707f }, { 0.259f, 0.966f } };
-		private final ModelPart[][] parts = new ModelPart[SLICES][3];
+		private static final float[][] STEPS = { { 0.981f, 0.195f }, { 0.831f, 0.556f }, { 0.556f, 0.831f }, { 0.195f, 0.981f } };
+		private final ModelPart[][] parts = new ModelPart[SLICES][STEPS.length];
 
 		BellyModel() {
 			super(build(), id -> RenderTypes.entityCutout(id));
 			for (int i = 0; i < SLICES; i++) {
-				for (int k = 0; k < 3; k++) {
+				for (int k = 0; k < STEPS.length; k++) {
 					this.parts[i][k] = this.root.getChild("s" + i + "_" + k);
 				}
 			}
@@ -89,7 +99,7 @@ public class BellyLayer extends RenderLayer<AvatarRenderState, PlayerModel> {
 			MeshDefinition mesh = new MeshDefinition();
 			PartDefinition root = mesh.getRoot();
 			for (int i = 0; i < SLICES; i++) {
-				for (int k = 0; k < 3; k++) {
+				for (int k = 0; k < STEPS.length; k++) {
 					// One texel row of the torso texture (front/back/sides share the same rows).
 					root.addOrReplaceChild("s" + i + "_" + k, CubeListBuilder.create().texOffs(16, 16 + i).addBox(-4.0f, -0.5f, -2.0f, 8.0f, 1.0f, 4.0f), PartPose.ZERO);
 				}
@@ -102,6 +112,8 @@ public class BellyLayer extends RenderLayer<AvatarRenderState, PlayerModel> {
 			float b = Math.max(0f, Math.min(1f, shape.belly()));
 			float round = smooth(b / 0.35f);
 			float wf = Size.widthFactor(b);
+			float df = Size.depthFactor(b);
+			float zc = -Size.forwardShift(b);
 			float height = 12f * (1f + 0.3f * b);
 			float centre = 6f + 0.2f * b;
 			float slice = height / SLICES;
@@ -110,15 +122,15 @@ public class BellyLayer extends RenderLayer<AvatarRenderState, PlayerModel> {
 				float ball = (float) Math.sqrt(Math.max(0.0, 1.0 - t * t));
 				float sf = 1f + (ball - 1f) * round;
 				float y = centre + ((i + 0.5f) / SLICES - 0.5f) * height;
-				for (int k = 0; k < 3; k++) {
+				for (int k = 0; k < STEPS.length; k++) {
 					ModelPart part = this.parts[i][k];
 					float fx = 1f + (STEPS[k][0] - 1f) * round;
 					float fz = 1f + (STEPS[k][1] - 1f) * round;
 					part.x = 0f;
 					part.y = y;
-					part.z = 0f;
+					part.z = zc;
 					part.xScale = wf * sf * fx;
-					part.zScale = wf * sf * fz;
+					part.zScale = df * sf * fz;
 					part.yScale = slice * 1.04f;
 				}
 			}
